@@ -15,6 +15,10 @@ class Cell:
         # temp vars
         self.removed = 0
         self.degree = 0
+        self.midpoint = []
+        self.pre_bend_start = []
+        self.pre_bend_end = []
+        self.bend_radius = 0
         self.lst_removed = []
         self.horizon_lst_removed = []
 
@@ -39,15 +43,17 @@ class Cell:
 
         # For physics engine
         self.mass = 0
-        self.acceleration = 0
-        self.velocity = 0
+        self.x_acceleration = 0
+        self.y_acceleration = 0
+        self.x_velocity = 0
+        self.y_velocity = 0
 
-        # self.red = randint(0,255)
-        # self.green = randint(0,255)
-        # self.blue = randint(0,255)
-        self.red = 80 + randint(1,30)
-        self.green = self.red
-        self.blue = self.red
+        self.red = randint(0,255)
+        self.green = randint(0,255)
+        self.blue = randint(0,255)
+        # self.red = 80 + randint(1,30)
+        # self.green = self.red
+        # self.blue = self.red
 
         self.cell_ID = 0
         self.screen = 0
@@ -76,10 +82,10 @@ class Cell:
             self.vertices.append(vertex) 
 
         if creation_type != "auto":
-            self.rightMost_xCoord = self.vertices[0]
-            self.topMost_yCoord = self.vertices[90]
-            self.leftMost_xCoord = self.vertices[180]
-            self.lowMost_yCoord = self.vertices[270]
+            self.rightMost_xCoord = [self.vertices[0][0],self.vertices[0][1], 0]
+            self.topMost_yCoord = [self.vertices[90][0],self.vertices[90][1], 90]
+            self.leftMost_xCoord = [self.vertices[180][0], self.vertices[180][1], 180]
+            self.lowMost_yCoord = [self.vertices[270][0], self.vertices[270][1], 270]
             self.overlap_checker()
             if self.overlap:
                 return
@@ -142,13 +148,13 @@ class Cell:
 
         if creation_type != 'auto':
             # Index of this is 0
-            self.rightMost_xCoord = self.vertices[0]
+            self.rightMost_xCoord = [self.vertices[0][0],self.vertices[0][1], 0]
             # Index of this is 180 + major_radius*2  
-            self.leftMost_xCoord = self.vertices[180 + major_radius*2]
+            self.leftMost_xCoord = [self.vertices[180 + major_radius*2][0], self.vertices[180 + major_radius*2][1], (180 + major_radius*2)]
             # Index of this is 90 + major_radius
-            self.topMost_yCoord = self.vertices[90 + major_radius]
+            self.topMost_yCoord = [self.vertices[90 + major_radius][0], self.vertices[90 + major_radius][1], (90 + major_radius)]
             # Index of this is  270 + (3*major_radius)
-            self.lowMost_yCoord = self.vertices[270 + (3*major_radius)]
+            self.lowMost_yCoord = [self.vertices[270 + (3*major_radius)][0], self.vertices[270 + (3*major_radius)][1], (270 + (3*major_radius))]
 
             self.overlap_checker()
             if self.overlap:
@@ -161,99 +167,79 @@ class Cell:
 
         end = len(self.vertices) - (start)
         
-        midpoint = [(self.vertices[start][0] + self.vertices[end][0])/2, (self.vertices[start][1] + self.vertices[end][1])/2 ]
+        if self.degree == 0:
+            self.midpoint = [(self.vertices[start][0] + self.vertices[end][0])/2, (self.vertices[start][1] + self.vertices[end][1])/2 ]
+            print(self.vertices[start],self.vertices[end])
+            self.pre_bend_start = self.vertices[start]
+            self.pre_bend_end = self.vertices[end]
+            self.bend_radius = self.midpoint[1] - self.pre_bend_start[1]
 
         angle_A = degrees
         self.degree += degrees
         lst_removed = []
-        # Just realized I can half this for loop, by making it do the vertice on the top and the vertice on the bottom at the same time.
-        #  I also want to see what would happen if I took each pair of top and bottom vertice, took their vertice, and base the rotation off of that.
-        removed_each_turn = 0
+
+        glue_spot = start
+        tear_spot = end + 1
+        y_var = 1
+        please = self.vertices[tear_spot][1] - self.midpoint[1]
+        if degrees < 0:
+            y_var = -1
+            glue_spot = end - 1
+            tear_spot = start - 1
+            please = self.midpoint[1] - self.vertices[tear_spot][1]
+        # start,end
 
         for i in range(start,end+1):
 
-            graphvers = [self.vertices[i][0] - midpoint[0], midpoint[1] - self.vertices[i][1]]
+            graphvers = [self.vertices[i][0] - self.midpoint[0], self.midpoint[1] - self.vertices[i][1]]
             newX = graphvers[0] * cos(radians(angle_A)) - graphvers[1]*sin(radians(angle_A))
             newY = graphvers[0] * sin(radians(angle_A)) + graphvers[1]*cos(radians(angle_A))
 
-            new_coord = [midpoint[0] + newX, midpoint[1] - newY]
+            new_coord = [self.midpoint[0] + newX, self.midpoint[1] - newY]
 
-
-            if (new_coord[0] > self.vertices[end+1][0]) and (new_coord[1] < self.vertices[end+1][1]):
-
+            # Fix this so it can adjust for either bend, upward and downward in whatever orientation the cell is in.
+            # if (new_coord[0] > self.vertices[tear_spot][0]) and (new_coord[1] < self.vertices[tear_spot][1]):
+            #     if i not in lst_removed:
+            #         lst_removed.append(i)
+            # else:
+            #     self.vertices[i] = new_coord
+            if (newX > 0) and (abs(newY) < abs(please)):
                 if i not in lst_removed:
-                    self.removed += 1
-                    # print('sup')
-                    removed_each_turn += 1
                     lst_removed.append(i)
-                    # self.vertices[i] = new_coord
-                # print(self.removed)
-
             else:
                 self.vertices[i] = new_coord
-            # Im going to remove vertices which has big reprucssions affecting whether or not I can redo another bend_cell function on a cell after performing one.
-            # I will remove the vertices however and hope somehow that when I add the part that adds vertices to the top, all will be saved.
 
-    
-        # WHEN BACK: Fix this SHII
-        if self.vertices[end + 1][0] < self.vertices[end][0]:
-            if -1 <= (self.vertices[end][0] - self.vertices[end + 1][0]) <= 1:
-            # if self.vertices[end + 1][1] < self.vertices[end][1]:
-                if self.vertices[end + 1] not in self.horizon_lst_removed:
-                    #  self.horizon_lst_removed.append(self.vertices[end + 1])
-                    lst_removed.append(end + 1)
-                    # print("here")
-                    removed_each_turn += 1
+        for num,i in enumerate(lst_removed,0):
 
-        # print("Degree: "+ str(self.degree) + " Vertices removed: " + str(removed_each_turn))
-
-        added_list = []
-        print(lst_removed)
-        for num,i in enumerate(lst_removed,1):
-            print('before_pop0')
-            print(len(self.vertices))
             self.vertices.pop(i)
-            print('after_pop')
-            print(len(self.vertices))
 
-            graphvers = [self.vertices[start][0] - midpoint[0], midpoint[1] - self.vertices[start][1]]
-            #  Maybe try adding an abs() for self.degree - 2.5*nums, like this, abs(self.degree - 2.5*nums)
-            # print('degrees: ' + str((-1)*(self.degree - 2.5*num)))
-            # print("Start of Section")
-            # print(self.degree)
-            # print(lst_removed)
-            # print(num)
-            # print((-1)*(self.degree - 2.5*num))
-            # print("End of Section")
-            # radians (-1)*(2.0*num)
+            graphvers = [self.pre_bend_start[0] - self.midpoint[0], self.midpoint[1] - self.pre_bend_start[1]]
+
             newX = graphvers[0] * cos(radians((-1)*(3.0*num))) - graphvers[1]*sin(radians((-1)*(3.0*num)))
+
             newY = graphvers[0] * sin(radians((-1)*(3.0*num))) + graphvers[1]*cos(radians((-1)*(3.0*num)))
 
-            new_vertice = [midpoint[0] + newX, midpoint[1] - newY]
-            # print(new_vertice)
-            pygame.draw.circle(self.screen,(0,255,0),new_vertice,3)
-            added_list.append(new_vertice)
+            # change the self.midpoint[1] - newY to self.midpoint[1] + newY
+            # I found the issue:  The start point does go forward in the normal bend but it is constantly pushed back, while in the negative bend, the start point(technically endpoint for the negative bend) only goes forward, without going back.
+            new_vertice = [self.midpoint[0] - newX, self.midpoint[1] - y_var*newY]
 
-        for i in range(len(lst_removed)):
-            self.vertices.insert(start,added_list[i])
-            
-            # temp = self.vertices[start]
-            # self.vertices.insert(start,new_vertice)
-            # self.vertices[start +1] = new_vertice
-            # self.vertices[start] = temp
-            # pygame.draw.circle(self.screen,(0,255,0),new_vertice,5)
+            pygame.draw.circle(self.screen,(0,255,0),new_vertice,6)
+            pygame.draw.circle(self.screen,(255,0,0),self.vertices[glue_spot],6)
 
+            print(glue_spot)
+            self.vertices.insert(glue_spot, new_vertice)
+        #     added_list.append(new_vertice)
 
-
-
-            
+        # for i in range(len(lst_removed)):
+        #     self.vertices.insert(start,added_list[i])
 
 # NOT DONE:  I reckon I need to add a self.overlap_checker() here
+# REALLY NOT DONE: Instead of using self.check_extremePoints(), I'm pretty sure I could just check the points nearest to the previous extreme points and see if they surpass it, making them the new extreme points.    NOOOO NEVERMIND, THIS WONT WORK
     def rotate_cell(self,start,end,degrees):
 
         origin = (self.x_pos, self.y_pos)
         print(self.vertices[start])
-        print(self.vertices[end])
+        # print(self.vertices[end])
 
         for index, vertex in enumerate(self.vertices[start:end]):
             graphVers_x = vertex[0] - origin[0]
@@ -353,19 +339,19 @@ class Cell:
             # Puts the x and y coordinates together and switches them with their corresponding spot in the list of vertices for the cell
             sup_coord = [midpoint[0] + newX, midpoint[1] - normParabolaY]
 
-            # print(sup_coord)
-
             # Changes the declared extreme points of the cell if this function creates new ones, so that I can make an accurate proximity box later
-            # IMPORTANT: DO NOT REPLACE THIS WITH self.checkExtremePoints, because it will waste a lot of time by checking the entire cell when all this is doing is checking the hll.
+            # IMPORTANT: DO NOT REPLACE THIS WITH self.checkExtremePoints, because it will waste a lot of time by checking the entire cell when all this is doing is checking the hill.
+
+            # Changes all the assignments of the extremem points to include the third index number
             if sup_coord[0] > self.rightMost_xCoord[0]:
-                self.rightMost_xCoord = sup_coord
+                self.rightMost_xCoord = [sup_coord[0],sup_coord[1],start + i]
             elif sup_coord[0] < self.leftMost_xCoord[0]:
-                self.leftMost_xCoord = sup_coord
+                self.leftMost_xCoord = [sup_coord[0],sup_coord[1],start + i]
             
             if sup_coord[1] < self.topMost_yCoord[1]:
-                self.topMost_yCoord = sup_coord
+                self.topMost_yCoord = [sup_coord[0],sup_coord[1],start + i]
             elif sup_coord[1] > self.lowMost_yCoord[1]:
-                self.lowMost_yCoord = sup_coord
+                self.lowMost_yCoord = [sup_coord[0],sup_coord[1],start + i]
 
 
             self.vertices[start+i] = sup_coord
@@ -434,7 +420,54 @@ class Cell:
         self.overlap_checker()
         if not self.overlap:
             Cell.list_of_cells.append(self)
+
+    def translate_cell(self,active_acceleration):
+        # Make it so that the velocites are only added to the extreme points first, check if they overlap with any cell, and go from there.
+        self.leftMost_xCoord[0] += self.x_velocity
+        self.rightMost_xCoord[0] += self.x_velocity
+        self.topMost_yCoord[0] += self.x_velocity
+        self.lowMost_yCoord[0] += self.x_velocity
+        self.leftMost_xCoord[1] += self.y_velocity
+        self.rightMost_xCoord[1] += self.y_velocity
+        self.topMost_yCoord[1] += self.y_velocity
+        self.lowMost_yCoord[1] += self.y_velocity
+
+        self.overlap_checker()
+        if self.overlap:
+            self.leftMost_xCoord[0] -= self.x_velocity
+            self.rightMost_xCoord[0] -= self.x_velocity
+            self.topMost_yCoord[0] -= self.x_velocity
+            self.lowMost_yCoord[0] -= self.x_velocity
+            self.leftMost_xCoord[1] -= self.y_velocity
+            self.rightMost_xCoord[1] -= self.y_velocity
+            self.topMost_yCoord[1] -= self.y_velocity
+            self.lowMost_yCoord[1] -= self.y_velocity
+            self.x_velocity = 0
+            self.y_velocity = 0
+
+            # self.overlap = False
+        else:
+            # self.leftMost_xCoord[0] -= self.x_velocity
+            # self.rightMost_xCoord[0] -= self.x_velocity
+            # self.topMost_yCoord[0] -= self.x_velocity
+            # self.lowMost_yCoord[0] -= self.x_velocity
+            # self.leftMost_xCoord[1] -= self.y_velocity
+            # self.rightMost_xCoord[1] -= self.y_velocity
+            # self.topMost_yCoord[1] -= self.y_velocity
+            # self.lowMost_yCoord[1] -= self.y_velocity
+            for vertice in self.vertices:
+                vertice[0] += self.x_velocity
+                vertice[1] += self.y_velocity
+        # if active_acceleration:
+        #     self.x_velocity += self.x_acceleration
+        #     self.y_velocity += self.y_acceleration
         
+        # self.overlap_checker()
+        # if self.overlap:
+        #     self.x_velocity = (-1) * self.x_velocity
+        #     self.y_velocity = (-1) * self.y_velocity
+        
+
     def overlap_checker(self):
 
         # Checker to make sure no cells who overlap are made
@@ -442,24 +475,52 @@ class Cell:
         # HOLY HELL I FORGOT: THIS ISN'T DONE:  Once a cell is detected to be in the proximit box of another, I now need to manually check each of the vertices in that cell to see if the two cells actually touch.  The only reason I used proximity boxes was to save a lot of computational power and time.
 
         for cell in Cell.list_of_cells:
+            
+            if cell == self:
+                continue
+            
+            if (cell.leftMost_xCoord[0] <= self.rightMost_xCoord[0] <= cell.rightMost_xCoord[0]):
 
-            if (cell.leftMost_xCoord[0] < self.rightMost_xCoord[0] < cell.rightMost_xCoord[0]) or (cell.leftMost_xCoord[0] < self.leftMost_xCoord[0] < cell.rightMost_xCoord[0]):
-
-                if (self.topMost_yCoord[1] < cell.topMost_yCoord[1] < self.lowMost_yCoord[1]) or (self.topMost_yCoord[1] < cell.lowMost_yCoord[1] < self.lowMost_yCoord[1]):
+                if (cell.topMost_yCoord[1] <= self.topMost_yCoord[1] <= cell.lowMost_yCoord[1]):
                     self.overlap = True
                     break
-                elif (cell.topMost_yCoord[1] < self.topMost_yCoord[1] < cell.lowMost_yCoord[1]) or (cell.topMost_yCoord[1] < self.lowMost_yCoord[1] < cell.lowMost_yCoord[1]):
+                
+                elif (cell.topMost_yCoord[1] <= self.lowMost_yCoord[1] <= cell.lowMost_yCoord[1]):
                     self.overlap = True
                     break
 
-            if (self.leftMost_xCoord[0] < cell.rightMost_xCoord[0] < self.rightMost_xCoord[0]) or (self.leftMost_xCoord[0] < cell.leftMost_xCoord[0] < self.rightMost_xCoord[0]):
+            elif (cell.leftMost_xCoord[0] <= self.leftMost_xCoord[0] <= cell.rightMost_xCoord[0]):
 
-                if (self.topMost_yCoord[1] < cell.topMost_yCoord[1] < self.lowMost_yCoord[1]) or (self.topMost_yCoord[1] < cell.lowMost_yCoord[1] < self.lowMost_yCoord[1]):
+                if (cell.topMost_yCoord[1] <= self.topMost_yCoord[1] <= cell.lowMost_yCoord[1]):
                     self.overlap = True
                     break
-                elif (cell.topMost_yCoord[1] < self.topMost_yCoord[1] < cell.lowMost_yCoord[1]) or (cell.topMost_yCoord[1] < self.lowMost_yCoord[1] < cell.lowMost_yCoord[1]):
+                
+                elif (cell.topMost_yCoord[1] <= self.lowMost_yCoord[1] <= cell.lowMost_yCoord[1]):
                     self.overlap = True
                     break
+
+        # for cell in Cell.list_of_cells:
+            
+        #     if cell == self:
+        #         continue
+            
+        #     if (cell.leftMost_xCoord[0] <= self.rightMost_xCoord[0] <= cell.rightMost_xCoord[0]) or (cell.leftMost_xCoord[0] <= self.leftMost_xCoord[0] <= cell.rightMost_xCoord[0]):
+
+                # if (self.topMost_yCoord[1] <= cell.topMost_yCoord[1] <= self.lowMost_yCoord[1]) or (self.topMost_yCoord[1] <= cell.lowMost_yCoord[1] <= self.lowMost_yCoord[1]):
+                #     self.overlap = True
+                #     break
+                # elif (cell.topMost_yCoord[1] <= self.topMost_yCoord[1] <= cell.lowMost_yCoord[1]) or (cell.topMost_yCoord[1] <= self.lowMost_yCoord[1] <= cell.lowMost_yCoord[1]):
+                #     self.overlap = True
+                #     break
+
+            # if (self.leftMost_xCoord[0] <= cell.rightMost_xCoord[0] <= self.rightMost_xCoord[0]) or (self.leftMost_xCoord[0] <= cell.leftMost_xCoord[0] <= self.rightMost_xCoord[0]):
+
+            #     if (self.topMost_yCoord[1] <= cell.topMost_yCoord[1] <= self.lowMost_yCoord[1]) or (self.topMost_yCoord[1] <= cell.lowMost_yCoord[1] <= self.lowMost_yCoord[1]):
+            #         self.overlap = True
+            #         break
+            #     elif (cell.topMost_yCoord[1] <= self.topMost_yCoord[1] <= cell.lowMost_yCoord[1]) or (cell.topMost_yCoord[1] <= self.lowMost_yCoord[1] <= cell.lowMost_yCoord[1]):
+            #         self.overlap = True
+            #         break
 
     def check_extremePoints(self,start=0,end=0):
         # Changes the declared extreme points of the cell if the function creates new ones, so that I can make an accurate proximity box later
@@ -472,22 +533,24 @@ class Cell:
         self.topMost_yCoord = [self.x_pos,self.y_pos]
         self.lowMost_yCoord = [self.x_pos,self.y_pos]
 
-        for vertex in self.vertices[start:end]:
+        # Changing self.vertices[start:end] to self.vertices
+
+        for i,vertex in enumerate(self.vertices):
             if vertex[0] > self.rightMost_xCoord[0]:
-                self.rightMost_xCoord = vertex
+                self.rightMost_xCoord = [vertex[0],vertex[1],i]
             elif vertex[0] < self.leftMost_xCoord[0]:
-                self.leftMost_xCoord = vertex
+                self.leftMost_xCoord = [vertex[0],vertex[1],i]
             
             if vertex[1] < self.topMost_yCoord[1]:
-                self.topMost_yCoord = vertex
+                self.topMost_yCoord = [vertex[0],vertex[1],i]
             elif vertex[1] > self.lowMost_yCoord[1]:
-                self.lowMost_yCoord = vertex
+                self.lowMost_yCoord = [vertex[0],vertex[1],i]
 
     def draw_polygon(self,show_vertices=False,show_proximityBox=False,start=0,end=0,thickness=1):
 
         # Doesn't draw the cell if it overlaps with another cell
-        if self.overlap:
-            return
+        # if self.overlap:
+        #     return
         # Actually puts the cell on the screen
         pygame.draw.polygon(self.screen,(self.red,self.green,self.blue),self.vertices)
         
@@ -511,3 +574,4 @@ class Cell:
         # Makes a secant in the cell connecting any two points of the cell.
         if start and end:
             pygame.draw.line(self.screen,(255 - self.red,255 - self.green,255 - self.blue),self.vertices[start],self.vertices[end],thickness)
+
