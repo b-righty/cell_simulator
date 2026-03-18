@@ -1,3 +1,4 @@
+
 import pygame
 from math import cos, sin, radians, atan, pi, e, pow, sqrt
 from random import randint
@@ -29,6 +30,11 @@ class Cell:
         self.leftMost_xCoord = []
         self.topMost_yCoord = []
         self.lowMost_yCoord = []
+
+        self.first_quadrant = []
+        self.second_quadrant = []
+        self.third_quadrant = []
+        self.fourth_quadrant = []
 
         self.vertices = []
 
@@ -89,6 +95,11 @@ class Cell:
             self.overlap_checker()
             if self.overlap:
                 return
+            self.first_quadrant = self.vertices[self.vertices.index([self.rightMost_xCoord[0], self.rightMost_xCoord[1]]) : self.vertices.index([self.topMost_yCoord[0], self.topMost_yCoord[1]]) : 3]
+            self.second_quadrant = self.vertices[self.vertices.index([self.topMost_yCoord[0], self.topMost_yCoord[1]]) : self.vertices.index([self.leftMost_xCoord[0], self.leftMost_xCoord[1]]) : 3]
+            self.third_quadrant = self.vertices[self.vertices.index([self.leftMost_xCoord[0], self.leftMost_xCoord[1]]) : self.vertices.index([self.lowMost_yCoord[0], self.lowMost_yCoord[1]]) : 3]
+            self.fourth_quadrant = self.vertices[self.vertices.index([self.lowMost_yCoord[0], self.lowMost_yCoord[1]]) : self.vertices.index([self.rightMost_xCoord[0], self.rightMost_xCoord[1]]) : 3]
+
             # Appends cell to total cell list
             Cell.list_of_cells.append(self)
         
@@ -472,19 +483,19 @@ class Cell:
 
         # Checker to make sure no cells who overlap are made
         # Works by essentially creating proxmity boxes and checks if each cell is within that proximity box
-        # HOLY HELL I FORGOT: THIS ISN'T DONE:  Once a cell is detected to be in the proximit box of another, I now need to manually check each of the vertices in that cell to see if the two cells actually touch.  The only reason I used proximity boxes was to save a lot of computational power and time.
+        # HOLY HELL I FORGOT: THIS ISN'T DONE:  Once a cell is detected to be in the proximity box of another, I now need to manually check each of the vertices in that cell to see if the two cells actually touch.  The only reason I used proximity boxes was to save a lot of computational power and time.
 
-        for cell in Cell.list_of_cells:
-            
+        for cell in Cell.list_of_cells:            
             if cell == self:
                 continue
             
             if (cell.leftMost_xCoord[0] <= self.rightMost_xCoord[0] <= cell.rightMost_xCoord[0]):
 
                 if (cell.topMost_yCoord[1] <= self.topMost_yCoord[1] <= cell.lowMost_yCoord[1]):
+                    for vertex in self.first_quadrant:
+                        pass 
                     self.overlap = True
-                    break
-                
+                    break               
                 elif (cell.topMost_yCoord[1] <= self.lowMost_yCoord[1] <= cell.lowMost_yCoord[1]):
                     self.overlap = True
                     break
@@ -493,8 +504,7 @@ class Cell:
 
                 if (cell.topMost_yCoord[1] <= self.topMost_yCoord[1] <= cell.lowMost_yCoord[1]):
                     self.overlap = True
-                    break
-                
+                    break                
                 elif (cell.topMost_yCoord[1] <= self.lowMost_yCoord[1] <= cell.lowMost_yCoord[1]):
                     self.overlap = True
                     break
@@ -546,6 +556,13 @@ class Cell:
             elif vertex[1] > self.lowMost_yCoord[1]:
                 self.lowMost_yCoord = [vertex[0],vertex[1],i]
 
+        # Creates the quadrants of the cell, which will be used in the future for the physics engine and other functions, so that I can just check the vertices in the quadrant of the cell that is colliding with another cell instead of checking every vertice in the entire cell, which will save a lot of time and computational power
+
+        # self.first_quadrant = self.vertices[self.vertices.index([self.rightMost_xCoord[0], self.rightMost_xCoord[1]]) : self.vertices.index([self.topMost_yCoord[0], self.topMost_yCoord[1]]) : 3]
+        # self.second_quadrant = self.vertices[self.vertices.index([self.topMost_yCoord[0], self.topMost_yCoord[1]]) : self.vertices.index([self.leftMost_xCoord[0], self.leftMost_xCoord[1]]) : 3]
+        # self.third_quadrant = self.vertices[self.vertices.index([self.leftMost_xCoord[0], self.leftMost_xCoord[1]]) : self.vertices.index([self.lowMost_yCoord[0], self.lowMost_yCoord[1]]) : 3]
+        # self.fourth_quadrant = self.vertices[self.vertices.index([self.lowMost_yCoord[0], self.lowMost_yCoord[1]]) : self.vertices.index([self.rightMost_xCoord[0], self.rightMost_xCoord[1]]) : 3]
+
     def draw_polygon(self,show_vertices=False,show_proximityBox=False,start=0,end=0,thickness=1):
 
         # Doesn't draw the cell if it overlaps with another cell
@@ -574,4 +591,3 @@ class Cell:
         # Makes a secant in the cell connecting any two points of the cell.
         if start and end:
             pygame.draw.line(self.screen,(255 - self.red,255 - self.green,255 - self.blue),self.vertices[start],self.vertices[end],thickness)
-
