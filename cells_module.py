@@ -95,10 +95,32 @@ class Cell:
             self.overlap_checker()
             if self.overlap:
                 return
-            self.first_quadrant = self.vertices[self.vertices.index([self.rightMost_xCoord[0], self.rightMost_xCoord[1]]) : self.vertices.index([self.topMost_yCoord[0], self.topMost_yCoord[1]]) : 3]
-            self.second_quadrant = self.vertices[self.vertices.index([self.topMost_yCoord[0], self.topMost_yCoord[1]]) : self.vertices.index([self.leftMost_xCoord[0], self.leftMost_xCoord[1]]) : 3]
-            self.third_quadrant = self.vertices[self.vertices.index([self.leftMost_xCoord[0], self.leftMost_xCoord[1]]) : self.vertices.index([self.lowMost_yCoord[0], self.lowMost_yCoord[1]]) : 3]
-            self.fourth_quadrant = self.vertices[self.vertices.index([self.lowMost_yCoord[0], self.lowMost_yCoord[1]]) : self.vertices.index([self.rightMost_xCoord[0], self.rightMost_xCoord[1]]) : 3]
+            
+
+            # ADD a checker where it sees if the second indexed vertex is at a loewer index value compared to the first one parsed through,and adjust accordingly, otherwise it will fail.  Pretty sure I only need this for first and fourth quadrant
+            # The method to do this will probably involve seperating it into two lists, one that ends before 0, one that starts in 0, and then combines them.
+            # Try to think of the scenario when the indexes are the same and what I should do, I don't think anyone will breake but mayber theres a way to save computation time by defaulting to the 1,2,3,4 quadrants based off index position alone and not the extreme point coords.
+            # To make it easier to read, define all the indexed extremed points here at the beginning
+            indexed_right = self.vertices.index([self.rightMost_xCoord[0], self.rightMost_xCoord[1]])
+
+            indexed_top = self.vertices.index([self.topMost_yCoord[0], self.topMost_yCoord[1]])
+
+            indexed_left = self.vertices.index([self.leftMost_xCoord[0], self.leftMost_xCoord[1]])
+            
+            indexed_bottom = self.vertices.index([self.lowMost_yCoord[0], self.lowMost_yCoord[1]])
+
+            if indexed_top < indexed_right:
+                self.first_quadrant = self.vertices[indexed_right :: 3] + self.vertices[0 : indexed_top : 3]
+            else:
+                self.first_quadrant = self.vertices[indexed_right : indexed_top : 3]
+
+            self.second_quadrant = self.vertices[indexed_top: indexed_left : 3]
+            self.third_quadrant = self.vertices[indexed_left : indexed_bottom : 3]
+
+            if indexed_right < indexed_bottom:
+                self.fourth_quadrant = self.vertices[indexed_bottom :: 3] + self.vertices[0: indexed_right]
+            else:
+                self.fourth_quadrant = self.vertices[indexed_bottom : indexed_right : 3]
 
             # Appends cell to total cell list
             Cell.list_of_cells.append(self)
@@ -434,6 +456,11 @@ class Cell:
 
     def translate_cell(self,active_acceleration):
         # Make it so that the velocites are only added to the extreme points first, check if they overlap with any cell, and go from there.
+
+        if self.overlap:
+            return
+
+        # Does a forward check, to see if the cell collides with another before commiting to the transition
         self.leftMost_xCoord[0] += self.x_velocity
         self.rightMost_xCoord[0] += self.x_velocity
         self.topMost_yCoord[0] += self.x_velocity
@@ -455,20 +482,13 @@ class Cell:
             self.lowMost_yCoord[1] -= self.y_velocity
             self.x_velocity = 0
             self.y_velocity = 0
-
-            # self.overlap = False
         else:
-            # self.leftMost_xCoord[0] -= self.x_velocity
-            # self.rightMost_xCoord[0] -= self.x_velocity
-            # self.topMost_yCoord[0] -= self.x_velocity
-            # self.lowMost_yCoord[0] -= self.x_velocity
-            # self.leftMost_xCoord[1] -= self.y_velocity
-            # self.rightMost_xCoord[1] -= self.y_velocity
-            # self.topMost_yCoord[1] -= self.y_velocity
-            # self.lowMost_yCoord[1] -= self.y_velocity
+            # Fully commites to the cell translation
             for vertice in self.vertices:
                 vertice[0] += self.x_velocity
                 vertice[1] += self.y_velocity
+            self.x_velocity += self.x_acceleration
+            self.y_velocity += self.y_acceleration
         # if active_acceleration:
         #     self.x_velocity += self.x_acceleration
         #     self.y_velocity += self.y_acceleration
@@ -485,47 +505,63 @@ class Cell:
         # Works by essentially creating proxmity boxes and checks if each cell is within that proximity box
         # HOLY HELL I FORGOT: THIS ISN'T DONE:  Once a cell is detected to be in the proximity box of another, I now need to manually check each of the vertices in that cell to see if the two cells actually touch.  The only reason I used proximity boxes was to save a lot of computational power and time.
 
-        # After I add the part that checks in each cells quarters, make sure to have a var or some way of communicating that I don't need to rerun the computations
+        # After I add the part that checks in each cells quarters, make sure to have a var or some way of communicating that I don't need to rerun the same computations
+        # Try thinking the for loops part as big data problems and maybe specific sorts can help expedite them.  Like I think starting in the center of the cell or end could be better for some problems, maybe see if there's also a way to find which could  be better.  The sort functions can be their own functions, and they'd be replaced by the for loops. 
+        # Maybe I can make it so the in depth vertex search only activates if the cells have veolicities which indicate they're going to collid, and not otherwise.
+        # Instead of using the predetermined vector index positions to decide the quadrants, instead create the quadrants based off of the most lef/right/up/down vertices.  Nevermind, it already is.
 
         for cell in Cell.list_of_cells:            
             if cell == self:
                 continue
+
+            # Only to test the physics/collisions system: REMOVE LATER
+            if self.overlap:
+                break
+            #################################
             
             if (cell.leftMost_xCoord[0] <= self.rightMost_xCoord[0] <= cell.rightMost_xCoord[0]):
 
+                # TOP RIGHT
                 if (cell.topMost_yCoord[1] <= self.topMost_yCoord[1] <= cell.lowMost_yCoord[1]):
-                    # print('top right')
-                    # self.overlap = True
-                    # break
                     for i, vertex in enumerate(self.first_quadrant[0:-1]):
                         for other_vertex in cell.third_quadrant:
-                            if ( vertex[0] < other_vertex[0] < self.first_quadrant[i+1][0] ) and ( vertex[1] < other_vertex[1] < self.first_quadrant[i+1][0] ):
-                                print("God no TRU")
+                            if ( self.first_quadrant[i+1][0] < other_vertex[0] < vertex[0] ) and ( self.first_quadrant[i+1][1] < other_vertex[1] < vertex[1] ):
                                 self.overlap = True
                                 break
                         if self.overlap:
                             break
                     if self.overlap:
-                        break               
+                        break 
+                # BOTTOM RIGHT   
                 elif (cell.topMost_yCoord[1] <= self.lowMost_yCoord[1] <= cell.lowMost_yCoord[1]):
-                    print("bottom right")
-                    self.overlap = True
-                    break
+                    for i, vertex in enumerate(self.fourth_quadrant[0:-1]):
+                        for other_vertex in cell.second_quadrant:        
+                            if ( vertex[0] < other_vertex[0] < self.fourth_quadrant[i+1][0] ) and ( self.fourth_quadrant[i+1][1] < other_vertex[1] < vertex[1] ):
+                                self.overlap = True
+                                break
+                        if self.overlap:
+                            break
+                    if self.overlap:
+                        break      
 
             elif (cell.leftMost_xCoord[0] <= self.leftMost_xCoord[0] <= cell.rightMost_xCoord[0]):
 
+                # TOP LEFT
                 if (cell.topMost_yCoord[1] <= self.topMost_yCoord[1] <= cell.lowMost_yCoord[1]):
-                    print("top left")
-                    self.overlap = True
-                    break                
+                    for i, vertex in enumerate(cell.fourth_quadrant[0:-1]):
+                        for other_vertex in self.second_quadrant:
+                            if ( vertex[0] < other_vertex[0] < cell.fourth_quadrant[i+1][0] ) and ( cell.fourth_quadrant[i+1][1] < other_vertex[1] < vertex[1] ):
+                                self.overlap = True
+                                break
+                        if self.overlap:
+                            break
+                    if self.overlap:
+                        break    
+                # BOTTOM LEFT
                 elif (cell.topMost_yCoord[1] <= self.lowMost_yCoord[1] <= cell.lowMost_yCoord[1]):
-                    # print("bottom left")
-                    # self.overlap = True
-                    # break
                     for i, vertex in enumerate(cell.first_quadrant[0:-1]):
                         for other_vertex in self.third_quadrant:
-                            if (vertex[0] < other_vertex[0] < cell.first_quadrant[i+1][0]) and ( vertex[1] < other_vertex[1] < cell.first_quadrant[i+1][0]):
-                                print("BLU")
+                            if (cell.first_quadrant[i+1][0] < other_vertex[0] < vertex[0]) and ( cell.first_quadrant[i+1][1] < other_vertex[1] < vertex[1]):
                                 self.overlap = True
                                 break
                         if self.overlap:
@@ -539,12 +575,11 @@ class Cell:
         if not end:
             end = len(self.vertices) 
 
+        # Figure out why I did this instead of just haveing the index of the extreme points
         self.rightMost_xCoord = [self.x_pos,self.y_pos]
         self.leftMost_xCoord = [self.x_pos,self.y_pos]
         self.topMost_yCoord = [self.x_pos,self.y_pos]
         self.lowMost_yCoord = [self.x_pos,self.y_pos]
-
-        # Changing self.vertices[start:end] to self.vertices
 
         for i,vertex in enumerate(self.vertices):
             if vertex[0] > self.rightMost_xCoord[0]:
@@ -559,11 +594,27 @@ class Cell:
 
         # Creates the quadrants of the cell, which will be used in the future for the physics engine and other functions, so that I can just check the vertices in the quadrant of the cell that is colliding with another cell instead of checking every vertice in the entire cell, which will save a lot of time and computational power
 
-        # This system won't work if I actually rotate the cell
-        self.first_quadrant = self.vertices[self.vertices.index([self.rightMost_xCoord[0], self.rightMost_xCoord[1]]) : self.vertices.index([self.topMost_yCoord[0], self.topMost_yCoord[1]]) : 3]
-        self.second_quadrant = self.vertices[self.vertices.index([self.topMost_yCoord[0], self.topMost_yCoord[1]]) : self.vertices.index([self.leftMost_xCoord[0], self.leftMost_xCoord[1]]) : 3]
-        self.third_quadrant = self.vertices[self.vertices.index([self.leftMost_xCoord[0], self.leftMost_xCoord[1]]) : self.vertices.index([self.lowMost_yCoord[0], self.lowMost_yCoord[1]]) : 3]
-        self.fourth_quadrant = self.vertices[self.vertices.index([self.lowMost_yCoord[0], self.lowMost_yCoord[1]]) : self.vertices.index([self.rightMost_xCoord[0], self.rightMost_xCoord[1]]) : 3]
+        # This system won't work if I actually rotate the cell  (Since it uses the extreme points, this system actually might work when the cell is rotate since when it rotates the extreme points refresh.  )
+            indexed_right = self.vertices.index([self.rightMost_xCoord[0], self.rightMost_xCoord[1]])
+
+            indexed_top = self.vertices.index([self.topMost_yCoord[0], self.topMost_yCoord[1]])
+
+            indexed_left = self.vertices.index([self.leftMost_xCoord[0], self.leftMost_xCoord[1]])
+            
+            indexed_bottom = self.vertices.index([self.lowMost_yCoord[0], self.lowMost_yCoord[1]])
+
+            if indexed_top < indexed_right:
+                self.first_quadrant = self.vertices[indexed_right :: 3] + self.vertices[0 : indexed_top : 3]
+            else:
+                self.first_quadrant = self.vertices[indexed_right : indexed_top : 3]
+
+            self.second_quadrant = self.vertices[indexed_top: indexed_left : 3]
+            self.third_quadrant = self.vertices[indexed_left : indexed_bottom : 3]
+
+            if indexed_right < indexed_bottom:
+                self.fourth_quadrant = self.vertices[indexed_bottom :: 3] + self.vertices[0: indexed_right]
+            else:
+                self.fourth_quadrant = self.vertices[indexed_bottom : indexed_right : 3]
 
     def draw_polygon(self,show_vertices=False,show_proximityBox=False,start=0,end=0,thickness=1):
 
