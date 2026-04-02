@@ -34,13 +34,13 @@ def bend_test(degrees):
 
 def movement_test():
     mtCell = Cell()
-    mtCell.circular_cell(screen,60,320,400)
+    mtCell.circular_cell(screen,60,460,400)
     mtCell.x_velocity = 0
     mtCell.y_velocity = -1
     mtCell.x_acceleration = 0
     mtCell.y_acceleration = 0
     mtCell2 = Cell()
-    mtCell2.circular_cell(screen,60, 400, 200)
+    mtCell2.circular_cell(screen,60, 400, 250)
     mtCell2.x_velocity = 0
     mtCell2.y_velocity = 1
     mtCell2.x_acceleration = 0
@@ -51,7 +51,9 @@ mtCell, mtCell2, testing_movement = movement_test()
 
 
 
-# Make a collision detection system
+# Make a collision detection system  *DONE*  (JUST NEED TO CLEAN IT UP)
+
+
 #       To make a collision detection system I will need to make sure no cells overlap. *DONE*
 #       Make cells rotate                    *DONE*
 # Make a mitosis system
