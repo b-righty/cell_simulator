@@ -9,7 +9,9 @@ from cells_module import Cell
 pygame.init()
 
 # Creating Window & Sets game/simulator to run
-screen = pygame.display.set_mode((900,700))
+WIDTH = 900
+HEIGHT = 680
+screen = pygame.display.set_mode((WIDTH,HEIGHT))
 running = True
 # Frame Rate
 clock = pygame.time.Clock()
@@ -18,37 +20,85 @@ fps = 10
 screen.fill((30,30,30))
 
 # List of Tests
-testing_bend = False
-btCell = 0
-i = 0
-testing_movement = False
-mtCell = 0
+testing_circularCell = False
+circleCell = Cell()
 
+testing_bacillusCell = False
+bacillusCell = Cell()
+
+testing_bend = False
+testing_directionShift = False
+testing_startingshift = False
+btCell = Cell()
+i = 0
+degrees_turned = 0
+start_bend = 150
+
+testing_movement = False
+mtCell = Cell()
+mtCell2 = Cell()
+
+demonstration_test = False
+cells = 20
+
+testing_rotation = False
+degrees_rotated = 0
+rotate = 1
+rCell = Cell()
+
+# next goal: make sure that when a cell is set to be created, that it is created.  Make it a setting so I can turn it on if I want the set amount of cedlls no matter what, and if off then that means I don't really care that much and if it can't thent he program won't try to create it again.
+
+
+def circularCell_test():
+    testing_circularCell = True
+    for i in range(20):
+        Cell().circular_cell(screen, randint(10,60), randint(60, WIDTH-60),randint(60,HEIGHT-60))
+    return testing_circularCell
+# testing_circularCell = circularCell_test()
+
+def bacillusCell_test():
+    testing_bacillusCell = True
+    majora = randint(40,60)
+    minora = majora//4
+    bacillusCell.bacteria_cell(screen, majora, minora, randint(60,WIDTH-60), randint(40,HEIGHT-40),uniform(0,2),uniform(0,2))
+    return testing_bacillusCell
+# testing_bacillusCell = bacillusCell_test()
 
 def bend_test(degrees):
-    btCell = Cell()
-    btCell.bacteria_cell(screen,60,20,400,300,1,1)
+    btCell.bacteria_cell(screen,60,20,WIDTH-500,HEIGHT-400,1,1)
     testing_bend = True
     return btCell, testing_bend, degrees
-#btCell, testing_bend, i = bend_test(1,3)
+# btCell, testing_bend, i = bend_test(1)
+
+def demonstration(cells):
+    demonstration_test = True
+    for i in range(cells):
+        Cell().random_cell(screen,randint(60,WIDTH-60), randint(60,HEIGHT-60), randint(20,60))
+    return demonstration_test
+demonstration_test = demonstration(cells)
 
 def movement_test():
-    mtCell = Cell()
-    mtCell.circular_cell(screen,60,460,400)
+    # 60, 460,250) 60, 400, 400
+    # mtCell.random_cell(screen,WIDTH-440, HEIGHT-450, 60)
+    mtCell.circular_cell(screen, 10, WIDTH-440, HEIGHT-450)
     mtCell.x_velocity = 0
-    mtCell.y_velocity = -1
+    mtCell.y_velocity = 1
     mtCell.x_acceleration = 0
     mtCell.y_acceleration = 0
-    mtCell2 = Cell()
-    mtCell2.circular_cell(screen,60, 400, 250)
+    # mtCell2.random_cell(screen,WIDTH-500, HEIGHT-500, 60)
+    mtCell2.circular_cell(screen, 100, WIDTH-500, HEIGHT-300)
     mtCell2.x_velocity = 0
-    mtCell2.y_velocity = 1
+    mtCell2.y_velocity = -1
     mtCell2.x_acceleration = 0
     mtCell2.y_acceleration = 0
     testing_movement = True
-    return mtCell, mtCell2, testing_movement,
-mtCell, mtCell2, testing_movement = movement_test()
+    return mtCell, mtCell2, testing_movement
+# mtCell, mtCell2, testing_movement = movement_test()
 
+def rotate_test():
+    rCell.random_cell(screen, WIDTH-500, HEIGHT-500, 10)
+    return True
+# testing_rotation = rotate_test()
 
 
 # Make a collision detection system  *DONE*  (JUST NEED TO CLEAN IT UP)
@@ -104,40 +154,46 @@ while running:
 
     screen.blit(textFPS, rectFPS)
     
-    # Rotates all cells in list_of_cells
-    # for i in range(len(Cell.list_of_cells)):
-    #     if i % 2 == 1:
-    #         Cell.list_of_cells[i].rotate_cell(0,len(Cell.list_of_cells[i].vertices),1+(i/100))
-    #     else:
-    #         Cell.list_of_cells[i].rotate_cell(0,len(Cell.list_of_cells[i].vertices),-1+(i/100))
-    #     Cell.list_of_cells[i].draw_polygon(True,True)
-        
-    #  Makes all the cells move randomly
-    # Makes a cool looking effect if you don't reset the screen
-    # for i in range(len(Cell.list_of_cells)):
-    #     change_x = randint(-3,3)
-    #     change_y = randint(-3,3)
+    # Make basic bacillus cell
+    if (not paused) and testing_bacillusCell:
+        bacillusCell.draw_polygon(True)
 
-    #     for vertice in Cell.list_of_cells[i].vertices:
-    #         vertice[0] += change_x
-    #         vertice[1] += change_y
-        
-    #     Cell.list_of_cells[i].draw_polygon(True,True)
-
+    # Make basic circular cell
+    if (not paused) and testing_circularCell:
+        for cell in Cell.list_of_cells:
+            cell.draw_polygon(True)
 
     # Make cell bend
-    if not paused and testing_bend:
-        btCell.bend_cell(150,i)
-        # sperm.draw_polygon(True)
-        btCell.draw_polygon(True,start=150,end=(len(btCell.vertices) - 150) + 1)
-        
-    if not paused and testing_movement:
+    if (not paused) and testing_bend:
+
+        if testing_directionShift:
+            if degrees_turned == 45:
+                i = -1
+        if testing_startingshift:
+            start_bend += 1
+        btCell.bend_cell(start_bend,i)
+        degrees_turned += 1
+        btCell.draw_polygon(True,start=start_bend,end=(len(btCell.vertices) - start_bend) + 1)
+
+    # Checks collision and movement
+    if (not paused) and testing_movement:
         mtCell2.translate_cell(True)
         mtCell.translate_cell(True)
         mtCell2.draw_polygon(True,True)
         mtCell.draw_polygon(True,True)
 
+    # Checks rotation
+    if (not paused) and testing_rotation:
+        rCell.rotate_cell(0,len(rCell.vertices),rotate)
+        degrees_rotated += rotate
+        rCell.draw_polygon(True,True)
 
+    # Does a small demonstration of current progress
+    if (not paused) and demonstration_test:
+        # print('here')
+        ids = [[cell.cell_ID, cell.overlap, cell.topMost_yCoord, cell.rightMost_xCoord, cell.lowMost_yCoord, cell.leftMost_xCoord] for cell in Cell.list_of_cells]
+        for cell in Cell.list_of_cells:
+            cell.draw_polygon(True,False,True)
     # for j in range(151):
     #     pygame.draw.circle(screen,(0,0,255,), sperm.vertices[j],3)
 
