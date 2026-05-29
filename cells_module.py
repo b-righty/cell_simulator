@@ -46,6 +46,7 @@ class Cell:
         self.minor_axis = 0
 
         self.overlap = False
+        self.retries = 10
 
         # For physics engine
         self.mass = 0
@@ -64,6 +65,7 @@ class Cell:
         self.cell_ID = 0
         self.screen = 0
 
+# NOT DONE: make it so that the amount of vertices is dependant on the size of the cell, larger cells get more vertices and smaller cells get less vertices.
     def circular_cell(self,monitor,radius,x_pos,y_pos,creation_type="manual"):
         # Generates a circular base cell    
 
@@ -72,27 +74,37 @@ class Cell:
         self.x_pos = x_pos
         self.y_pos = y_pos
         self.screen = monitor
-
-        self.cell_ID = Cell.current_cell_ID
-        Cell.listOf_cell_IDs.append(self.cell_ID)
-        Cell.current_cell_ID += 1
-
+        degree = 0
         #  It's at 360 and not 361, since 0 and 360 are the same so the number 360 does not need to be included 
-        for i in range(360):
+        # for i in range(360):
+        vertex_count = int((360 / 6) * ((self.radius // 10) * 2))
+        for i in range(vertex_count):
             # adds the x and y coordinate of the center of the circle to the x and y coordinates of the circle defined by the user's input
-            x = x_pos + cos(radians(i)) * radius
-            y = y_pos - sin(radians(i)) * radius
 
+            x = x_pos + cos(radians(degree)) * radius
+            y = y_pos - sin(radians(degree)) * radius
+
+            # x = x_pos + cos(radians(degree)) * radius
+            # y = y_pos - sin(radians(degree)) * radius
+
+            degree += 1/(((radius//10) * 2)/6)
             # defines the vertices and appends them to the in-built list of the cell
             vertex = [x,y]
             self.vertices.append(vertex) 
+        
+        fourth_interval = int(vertex_count / 4)
+        self.rightMost_xCoord = [self.vertices[0][0],self.vertices[0][1], 0]
+        self.topMost_yCoord = [self.vertices[fourth_interval][0],self.vertices[fourth_interval][1], fourth_interval]
+        self.leftMost_xCoord = [self.vertices[2*fourth_interval][0], self.vertices[2*fourth_interval][1], 2*fourth_interval]
+        self.lowMost_yCoord = [self.vertices[3*fourth_interval][0], self.vertices[3*fourth_interval][1], 3*fourth_interval]
+
+        # self.rightMost_xCoord = [self.vertices[0][0],self.vertices[0][1], 0]
+        # self.topMost_yCoord = [self.vertices[90][0],self.vertices[90][1], 90]
+        # self.leftMost_xCoord = [self.vertices[180][0], self.vertices[180][1], 180]
+        # self.lowMost_yCoord = [self.vertices[270][0], self.vertices[270][1], 270]
 
         if creation_type != "auto":
-            self.rightMost_xCoord = [self.vertices[0][0],self.vertices[0][1], 0]
-            self.topMost_yCoord = [self.vertices[90][0],self.vertices[90][1], 90]
-            self.leftMost_xCoord = [self.vertices[180][0], self.vertices[180][1], 180]
-            self.lowMost_yCoord = [self.vertices[270][0], self.vertices[270][1], 270]
-            self.overlap_checker()
+            self.overlap_checker(True)
             if self.overlap:
                 return
             
@@ -101,33 +113,54 @@ class Cell:
             # The method to do this will probably involve seperating it into two lists, one that ends before 0, one that starts in 0, and then combines them.
             # Try to think of the scenario when the indexes are the same and what I should do, I don't think anyone will breake but mayber theres a way to save computation time by defaulting to the 1,2,3,4 quadrants based off index position alone and not the extreme point coords.
             # To make it easier to read, define all the indexed extremed points here at the beginning
-            indexed_right = self.vertices.index([self.rightMost_xCoord[0], self.rightMost_xCoord[1]])
 
-            indexed_top = self.vertices.index([self.topMost_yCoord[0], self.topMost_yCoord[1]])
+            # indexed_right = self.vertices.index([self.rightMost_xCoord[0], self.rightMost_xCoord[1]])
 
-            indexed_left = self.vertices.index([self.leftMost_xCoord[0], self.leftMost_xCoord[1]])
+            # indexed_top = self.vertices.index([self.topMost_yCoord[0], self.topMost_yCoord[1]])
+
+            # indexed_left = self.vertices.index([self.leftMost_xCoord[0], self.leftMost_xCoord[1]])
             
-            indexed_bottom = self.vertices.index([self.lowMost_yCoord[0], self.lowMost_yCoord[1]])
+            # indexed_bottom = self.vertices.index([self.lowMost_yCoord[0], self.lowMost_yCoord[1]])
 
-            if indexed_top < indexed_right:
-                self.first_quadrant = self.vertices[indexed_right :: 3] + self.vertices[0 : indexed_top : 3]
+            if self.topMost_yCoord[2] < self.rightMost_xCoord[2]:
+                self.first_quadrant = self.vertices[self.rightMost_xCoord[2] :: 3] + self.vertices[0 : self.topMost_yCoord[2] : 3]
             else:
-                self.first_quadrant = self.vertices[indexed_right : indexed_top : 3]
+                self.first_quadrant = self.vertices[ self.rightMost_xCoord[2] : self.topMost_yCoord[2] : 3]
 
-            self.second_quadrant = self.vertices[indexed_top: indexed_left : 3]
-            self.third_quadrant = self.vertices[indexed_left : indexed_bottom : 3]
+            self.second_quadrant = self.vertices[self.topMost_yCoord[2] : self.leftMost_xCoord[2] : 3]
 
-            if indexed_right < indexed_bottom:
-                self.fourth_quadrant = self.vertices[indexed_bottom :: 3] + self.vertices[0: indexed_right]
+            self.third_quadrant = self.vertices[self.leftMost_xCoord[2]: self.lowMost_yCoord[2] : 3]
+
+            if self.rightMost_xCoord[2] < self.lowMost_yCoord[2]:
+                self.fourth_quadrant = self.vertices[self.lowMost_yCoord[2] :: 3] + self.vertices[0: self.rightMost_xCoord[2]]
             else:
-                self.fourth_quadrant = self.vertices[indexed_bottom : indexed_right : 3]
+                self.fourth_quadrant = self.vertices[self.lowMost_yCoord[2] : self.rightMost_xCoord[2] : 3]
+
+            # if indexed_top < indexed_right:
+            #     self.first_quadrant = self.vertices[indexed_right :: 3] + self.vertices[0 : indexed_top : 3]
+            # else:
+            #     self.first_quadrant = self.vertices[indexed_right : indexed_top : 3]
+
+            # self.second_quadrant = self.vertices[indexed_top: indexed_left : 3]
+            # self.third_quadrant = self.vertices[indexed_left : indexed_bottom : 3]
+
+            # if indexed_right < indexed_bottom:
+            #     self.fourth_quadrant = self.vertices[indexed_bottom :: 3] + self.vertices[0: indexed_right]
+            # else:
+            #     self.fourth_quadrant = self.vertices[indexed_bottom : indexed_right : 3]
+
 
             # Appends cell to total cell list
+            self.cell_ID = Cell.current_cell_ID
+            Cell.listOf_cell_IDs.append(self.cell_ID)
+            Cell.current_cell_ID += 1
             Cell.list_of_cells.append(self)
+            
         
         # Saves data to the cell object, to be used later in other functions
 
 # When Back, make sure this makes a smooth bacillus shape
+# NOT DONE: make it so that the amount of vertices is dependant on the size of the cell, larger cells get more vertices and smaller cells get less vertices.
     def bacteria_cell(self,monitor,major_radius,minor_radius,x_pos,y_pos,left_smother_factor,right_smother_factor,creation_type="manual"):
         # Makes a bacillus shaped cell by making 2 lines and curves the edges with the final circle in the sequence
 
@@ -195,7 +228,7 @@ class Cell:
             # Appends cell to total cell list
             Cell.list_of_cells.append(self)
 
-# This func will allow cells to bend/fold
+# This func will allow bacillus cells to bend/fold
     def bend_cell(self,start,degrees):
 
         end = len(self.vertices) - (start)
@@ -271,7 +304,6 @@ class Cell:
     def rotate_cell(self,start,end,degrees):
 
         origin = (self.x_pos, self.y_pos)
-        print(self.vertices[start])
         # print(self.vertices[end])
 
         for index, vertex in enumerate(self.vertices[start:end]):
@@ -394,7 +426,7 @@ class Cell:
         #Creates a cell and skip_counter:  Skip_counter will be used to make sure this func doesn't create a hill on top another hill
         match cell_type:
             case "circular":
-                self.circular_cell(monitor,radius,x_pos, y_pos)
+                self.circular_cell(monitor,radius,x_pos, y_pos, creation_type="auto")
             case "bacillus":
                 self.bacteria_cell(monitor,ellipse[0],ellipse[1],x_pos,y_pos,1,1,creation_type="auto")
             case _:
@@ -408,6 +440,7 @@ class Cell:
 
         for i in range(len(self.vertices)):
             # does the skip_counter thing mentioned above
+            # print(skip_counter)
             if skip_counter > 0:
                 skip_counter -= 1
                 continue
@@ -417,32 +450,39 @@ class Cell:
             valley_chance = randint(0,hill_valley_frequency[1])
 
             # Makes sure that once its set to generate a hill, that the endpoint of the new hill doesn't exceed the list length of the cell vertices
+            # maybe make vertice_length a class variable every individual has, so that I don't have to waste computing power everytime I call len(self.vertices)
+
             if make_hill_chance == 1:
                 skip_counter = randint(width_range[0],width_range[1])
+                vertice_length = len(self.vertices)
+                no_hill_num = skip_counter + i
 
-                if ((i + skip_counter) > 359) and (skip_counter < width_range[0]):
+                if ((skip_counter + i) >= vertice_length) and (skip_counter < width_range[0]):
                     break
-                elif ((i + skip_counter) > 359) and (skip_counter >= width_range[0]):
+                elif ((skip_counter + i) >= vertice_length) and (skip_counter >= width_range[0]):
                     skip_counter = width_range[0]
-                    if (i + skip_counter) > 359:
+                    if (skip_counter + i) >= vertice_length:
                         break
 
-                endPoint = i + skip_counter
+                
+                endPoint = skip_counter + i
                 hill_height = randint(1,height_depth_variation[0])
-
+                
                 self.make_hill(i,endPoint,hill_height)
             elif valley_chance == 1:
-
+                
                 skip_counter = randint(width_range[0],width_range[1])
+                vertice_length = len(self.vertices)
+                no_valley_num = skip_counter + i
 
-                if ((i + skip_counter) > 359) and (skip_counter < width_range[0]):
+                if ((skip_counter + i) >= vertice_length) and (skip_counter < width_range[0]):
                     break
-                elif ((i + skip_counter) > 359) and (skip_counter >= width_range[0]):
+                elif ((skip_counter + i) >= vertice_length) and (skip_counter >= width_range[0]):
                     skip_counter = width_range[0]
-                    if (i + skip_counter) > 359:
+                    if (skip_counter + i) >= vertice_length:
                         break
 
-                endPoint = i + skip_counter
+                endPoint = skip_counter + i
                 valley_depth = randint(1,height_depth_variation[1])
 
                 self.make_hill(i,endPoint,valley_depth,"down")
@@ -450,9 +490,13 @@ class Cell:
         # Appends the newly made cell to the total list of cells in the Class if it doesn't overlap with another
         # SUPER IMPORTANT:                                       I reckon the check_extremePoints() function here is pointless since I already have it in the make_hills function but I have to test it.  If this is true then when I'm in the hill function I can just
         self.check_extremePoints()
-        self.overlap_checker()
+        self.overlap_checker(True)
         if not self.overlap:
+            self.cell_ID = Cell.current_cell_ID
+            Cell.listOf_cell_IDs.append(self.cell_ID)
+            Cell.current_cell_ID += 1
             Cell.list_of_cells.append(self)
+
 
     def translate_cell(self,active_acceleration):
         # Make it so that the velocites are only added to the extreme points first, check if they overlap with any cell, and go from there.
@@ -498,8 +542,8 @@ class Cell:
         #     self.x_velocity = (-1) * self.x_velocity
         #     self.y_velocity = (-1) * self.y_velocity
         
-
-    def overlap_checker(self):
+# add a mode to overlap_checker, like a spawn mode, so that it only checks if the regions intersect, if so then make the cell's self.overlap True.  The way it is, has it only detecting moving collisions which is why when I make random cells they can intersect.
+    def overlap_checker(self, spawnCheck=False):
 
         # Checker to make sure no cells who overlap are made
         # Works by essentially creating proxmity boxes and checks if each cell is within that proximity box
@@ -507,9 +551,11 @@ class Cell:
 
         # After I add the part that checks in each cells quarters, make sure to have a var or some way of communicating that I don't need to rerun the same computations
         # Try thinking the for loops part as big data problems and maybe specific sorts can help expedite them.  Like I think starting in the center of the cell or end could be better for some problems, maybe see if there's also a way to find which could  be better.  The sort functions can be their own functions, and they'd be replaced by the for loops. 
-        # Maybe I can make it so the in depth vertex search only activates if the cells have veolicities which indicate they're going to collid, and not otherwise.
-        # Instead of using the predetermined vector index positions to decide the quadrants, instead create the quadrants based off of the most lef/right/up/down vertices.  Nevermind, it already is.
 
+        # TODO: make sure the cell doesn't go off screen.
+        # TODO: make sure that when one cell's self.overlap is True, that the cell.overlap is also turned True, so that I don't have needless complications.
+        # TODO: make it so that if a cell is spawning and it doesn't spawn due to issues, then the program retries again.
+        # IDEAS for TODO above, I can make it continously try to find a spot for the cell by randomly setting its x and y coords and if it fails after the tenth time then just restart the cell entirely, or just reset the cell from the getgo.
         for cell in Cell.list_of_cells:            
             if cell == self:
                 continue
@@ -521,26 +567,44 @@ class Cell:
             
             if (cell.leftMost_xCoord[0] <= self.rightMost_xCoord[0] <= cell.rightMost_xCoord[0]):
 
+                # changing self.topMost_yCoord[1] to self.rightMost_xCoord  (make a whole different system where it checks if the spawnCheck==True, then it will use the rightMost_xCoord[1] in place of the self.topMost_yCoord[1])
+
                 # TOP RIGHT
                 if (cell.topMost_yCoord[1] <= self.topMost_yCoord[1] <= cell.lowMost_yCoord[1]):
-                    for i, vertex in enumerate(self.first_quadrant[0:-1]):
-                        for other_vertex in cell.third_quadrant:
-                            if ( self.first_quadrant[i+1][0] < other_vertex[0] < vertex[0] ) and ( self.first_quadrant[i+1][1] < other_vertex[1] < vertex[1] ):
-                                self.overlap = True
+
+                    if spawnCheck:
+                        self.overlap = True
+                        self.retries -= 1
+                        # LATER: connect this to the WIDTH and HEIGHT constants in the main.py
+
+                        new_origin = [randint((self.radius-self.leftMost_xCoord[0]), 900-(self.leftMost_xCoord[0]-self.radius)), randint((self.y_pos - self.topMost_yCoord, 680 - (self.lowMost_yCoord - self.y_pos)))]
+
+                        # TODO: CHECK THIS IS RIGHT, it seems right
+                        origin_difference = [new_origin[0] - self.x_pos, new_origin[1] - self.y_pos]
+
+                    else:
+                        for i, vertex in enumerate(self.first_quadrant[0:-1]):
+                            for other_vertex in cell.third_quadrant:
+                                if ( self.first_quadrant[i+1][0] < other_vertex[0] < vertex[0] ) and ( self.first_quadrant[i+1][1] < other_vertex[1] < vertex[1] ):
+                                    self.overlap = True
+                                    break
+                            if self.overlap:
                                 break
-                        if self.overlap:
-                            break
                     if self.overlap:
                         break 
                 # BOTTOM RIGHT   
                 elif (cell.topMost_yCoord[1] <= self.lowMost_yCoord[1] <= cell.lowMost_yCoord[1]):
-                    for i, vertex in enumerate(self.fourth_quadrant[0:-1]):
-                        for other_vertex in cell.second_quadrant:        
-                            if ( vertex[0] < other_vertex[0] < self.fourth_quadrant[i+1][0] ) and ( self.fourth_quadrant[i+1][1] < other_vertex[1] < vertex[1] ):
-                                self.overlap = True
+
+                    if spawnCheck:
+                        self.overlap = True
+                    else:
+                        for i, vertex in enumerate(self.fourth_quadrant[0:-1]):
+                            for other_vertex in cell.second_quadrant:        
+                                if ( vertex[0] < other_vertex[0] < self.fourth_quadrant[i+1][0] ) and ( self.fourth_quadrant[i+1][1] < other_vertex[1] < vertex[1] ):
+                                    self.overlap = True
+                                    break
+                            if self.overlap:
                                 break
-                        if self.overlap:
-                            break
                     if self.overlap:
                         break      
 
@@ -548,26 +612,53 @@ class Cell:
 
                 # TOP LEFT
                 if (cell.topMost_yCoord[1] <= self.topMost_yCoord[1] <= cell.lowMost_yCoord[1]):
-                    for i, vertex in enumerate(cell.fourth_quadrant[0:-1]):
-                        for other_vertex in self.second_quadrant:
-                            if ( vertex[0] < other_vertex[0] < cell.fourth_quadrant[i+1][0] ) and ( cell.fourth_quadrant[i+1][1] < other_vertex[1] < vertex[1] ):
-                                self.overlap = True
+
+                    if spawnCheck:
+                        self.overlap = True
+                    else:
+                        for i, vertex in enumerate(cell.fourth_quadrant[0:-1]):
+                            for other_vertex in self.second_quadrant:
+                                if ( vertex[0] < other_vertex[0] < cell.fourth_quadrant[i+1][0] ) and ( cell.fourth_quadrant[i+1][1] < other_vertex[1] < vertex[1] ):
+                                    self.overlap = True
+                                    break
+                            if self.overlap:
                                 break
-                        if self.overlap:
-                            break
                     if self.overlap:
                         break    
                 # BOTTOM LEFT
                 elif (cell.topMost_yCoord[1] <= self.lowMost_yCoord[1] <= cell.lowMost_yCoord[1]):
-                    for i, vertex in enumerate(cell.first_quadrant[0:-1]):
-                        for other_vertex in self.third_quadrant:
-                            if (cell.first_quadrant[i+1][0] < other_vertex[0] < vertex[0]) and ( cell.first_quadrant[i+1][1] < other_vertex[1] < vertex[1]):
-                                self.overlap = True
+
+                    if spawnCheck:
+                        self.overlap = True
+                    else:
+                        for i, vertex in enumerate(cell.first_quadrant[0:-1]):
+                            for other_vertex in self.third_quadrant:
+                                if (cell.first_quadrant[i+1][0] < other_vertex[0] < vertex[0]) and ( cell.first_quadrant[i+1][1] < other_vertex[1] < vertex[1]):
+                                    self.overlap = True
+                                    break
+                            if self.overlap:
                                 break
-                        if self.overlap:
-                            break
                     if self.overlap:
-                        break      
+                        break  
+
+            # Checks for when a larger cell spawns ontop of a smaller cell
+            if spawnCheck:
+                if (self.leftMost_xCoord[0] <= cell.rightMost_xCoord[0] <= self.rightMost_xCoord[0]):
+
+                    if (self.topMost_yCoord[1] <= cell.topMost_yCoord[1] <= self.lowMost_yCoord[1]):
+                        self.overlap = True
+                # BOTTOM RIGHT   
+                    elif (self.topMost_yCoord[1] <= cell.lowMost_yCoord[1] <= self.lowMost_yCoord[1]):
+                        self.overlap = True
+
+                elif (self.leftMost_xCoord[0] <= cell.leftMost_xCoord[0] <= self.rightMost_xCoord[0]):
+
+                    if (self.topMost_yCoord[1] <= cell.topMost_yCoord[1] <= self.lowMost_yCoord[1]):  
+                        self.overlap = True
+                    # BOTTOM LEFT
+                    elif (self.topMost_yCoord[1] <= cell.lowMost_yCoord[1] <= self.lowMost_yCoord[1]):
+                        self.overlap = True
+                    
 
     def check_extremePoints(self,start=0,end=0):
         # Changes the declared extreme points of the cell if the function creates new ones, so that I can make an accurate proximity box later
@@ -591,32 +682,35 @@ class Cell:
                 self.topMost_yCoord = [vertex[0],vertex[1],i]
             elif vertex[1] > self.lowMost_yCoord[1]:
                 self.lowMost_yCoord = [vertex[0],vertex[1],i]
+            
+        # print(self.topMost_yCoord)
+        # print([vertex[0], vertex[1], i])
 
         # Creates the quadrants of the cell, which will be used in the future for the physics engine and other functions, so that I can just check the vertices in the quadrant of the cell that is colliding with another cell instead of checking every vertice in the entire cell, which will save a lot of time and computational power
 
         # This system won't work if I actually rotate the cell  (Since it uses the extreme points, this system actually might work when the cell is rotate since when it rotates the extreme points refresh.  )
-            indexed_right = self.vertices.index([self.rightMost_xCoord[0], self.rightMost_xCoord[1]])
+        indexed_right = self.vertices.index([self.rightMost_xCoord[0], self.rightMost_xCoord[1]])
 
-            indexed_top = self.vertices.index([self.topMost_yCoord[0], self.topMost_yCoord[1]])
+        indexed_top = self.vertices.index([self.topMost_yCoord[0], self.topMost_yCoord[1]])
 
-            indexed_left = self.vertices.index([self.leftMost_xCoord[0], self.leftMost_xCoord[1]])
-            
-            indexed_bottom = self.vertices.index([self.lowMost_yCoord[0], self.lowMost_yCoord[1]])
+        indexed_left = self.vertices.index([self.leftMost_xCoord[0], self.leftMost_xCoord[1]])
+        
+        indexed_bottom = self.vertices.index([self.lowMost_yCoord[0], self.lowMost_yCoord[1]])
 
-            if indexed_top < indexed_right:
-                self.first_quadrant = self.vertices[indexed_right :: 3] + self.vertices[0 : indexed_top : 3]
-            else:
-                self.first_quadrant = self.vertices[indexed_right : indexed_top : 3]
+        if indexed_top < indexed_right:
+            self.first_quadrant = self.vertices[indexed_right :: 3] + self.vertices[0 : indexed_top : 3]
+        else:
+            self.first_quadrant = self.vertices[indexed_right : indexed_top : 3]
 
-            self.second_quadrant = self.vertices[indexed_top: indexed_left : 3]
-            self.third_quadrant = self.vertices[indexed_left : indexed_bottom : 3]
+        self.second_quadrant = self.vertices[indexed_top: indexed_left : 3]
+        self.third_quadrant = self.vertices[indexed_left : indexed_bottom : 3]
 
-            if indexed_right < indexed_bottom:
-                self.fourth_quadrant = self.vertices[indexed_bottom :: 3] + self.vertices[0: indexed_right]
-            else:
-                self.fourth_quadrant = self.vertices[indexed_bottom : indexed_right : 3]
+        if indexed_right < indexed_bottom:
+            self.fourth_quadrant = self.vertices[indexed_bottom :: 3] + self.vertices[0: indexed_right]
+        else:
+            self.fourth_quadrant = self.vertices[indexed_bottom : indexed_right : 3]
 
-    def draw_polygon(self,show_vertices=False,show_proximityBox=False,start=0,end=0,thickness=1):
+    def draw_polygon(self,show_vertices=False,show_proximityBox=False,show_ID=False,start=0,end=0,thickness=1):
 
         # Doesn't draw the cell if it overlaps with another cell
         # if self.overlap:
@@ -640,6 +734,19 @@ class Cell:
             proximity_box = [topLeftCorner,topRightCorner,bottomRightCorner,bottomLeftCorner]
 
             pygame.draw.polygon(self.screen,(255,255,255),proximity_box,thickness)
+
+        # Shows the ID of the cell in the center of it
+        if show_ID:
+            # self.x_pos, self.y_pos
+            try:
+                font = pygame.font.SysFont('Arial', 24)
+            except:
+                font = pygame.font.SysFont(None, 24)
+            cell_num = font.render(str(self.cell_ID), True, (0,0,0))
+            rectCnum = cell_num.get_rect()
+            rectCnum.x = self.leftMost_xCoord[0] + self.radius * 0.75 
+            rectCnum.y = self.topMost_yCoord[1] + self.radius * 0.75
+            self.screen.blit(cell_num, rectCnum)
 
         # Makes a secant in the cell connecting any two points of the cell.
         if start and end:
